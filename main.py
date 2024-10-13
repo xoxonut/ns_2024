@@ -30,67 +30,55 @@ def remove_iptables_rule():
 
 
 
-
-def handle_co(client_socket):
-    try:
-        print('asd')
-        client_socket.send(b"Hello, SSL client!")
-        client_socket.close()
-    except Exception as e:
-        print(f"Error handling client connection: {e}")
-
 def start_ssl_server():
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(certfile="certificates/host.crt", keyfile="certificates/host.key")
 
-    bind_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    bind_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    bind_socket.bind(('0.0.0.0', 443))
-    bind_socket.listen(5)
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    s.bind(('0.0.0.0', 443))
+    s.listen(5)
     print("SSL server listening on port 443")
 
     while True:
         try:
-            client_socket, addr = bind_socket.accept()
+            client_socket, addr = s.accept()
             ssl_socket = context.wrap_socket(client_socket, server_side=True)
             print(f"Accepted connection from {addr}")
-            external_ssock = create_ssl_connection()
+            server_socket = create_ssl_connection()
             while True:
-                data = external_ssock.recv(512)
-                if not data:
+                try:
+                    print(123)
+                    data1 = ssl_socket.recv(4096)
+                    print('data1',data1.decode())
+                    if data1: server_socket.send(data1)
+                    data2 = server_socket.recv(8192)
+                    if data2: ssl_socket.send(data2)
+                    print(f"Data1: {len(data1)} bytes, data2: {len(data2)} bytes")
+                    if not data1 and not data1: 
+                        print("Closing connection")
+                        break
+                except Exception as e:
+                    print(f"An error occurred during data transfer: {e}")
                     break
-                ssl_socket.sendall(data)
+
+
         except ssl.SSLError as e:
             print(f"SSL error occurred: {e}")
         except Exception as e:
             print(f"An error occurred: {e}")
         finally:
-            external_ssock.close()
+            server_socket.close()
             ssl_socket.close()
             
 def create_ssl_connection():
-    # 連接到目標網站
     hostname = 'portal.nycu.edu.tw'
     port = 443
-
-    # 創建一個 TCP/IP 套接字
     context = ssl.create_default_context()
-
-    # 與服務器建立 TCP 連接
-    external = None
     sock = socket.create_connection((hostname, port))
-        # 將套接字升級為安全的 SSL 連接
-        
-    ssock = context.wrap_socket(sock, server_hostname=hostname)
+    ssl_sock = context.wrap_socket(sock, server_hostname=hostname)
     print(f"SSL connection established with {hostname}")
-            
-    
-    ssock.sendall(b"GET / HTTP/1.1\r\nHost: portal.nycu.edu.tw\r\n\r\n")
-            
-            # 接收來自服務器的數據
-    external_ssock = ssock
-    return external_ssock
-
+    return ssl_sock
 
 
 try:
